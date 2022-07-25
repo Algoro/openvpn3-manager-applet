@@ -1,6 +1,7 @@
 import gi
 import os
 import subprocess
+import pexpect
 import pickle
 
 from pathlib import Path
@@ -33,8 +34,8 @@ class OpenVPN3ManagerApplet:
 
         self._load_credentials()
         self._load_config_files()
-
         self._build_applet()
+       
 
 
     def _load_credentials(self):
@@ -114,8 +115,8 @@ class OpenVPN3ManagerApplet:
         # Adding manager actions
         self._build_manager_actions()
         self._menu.show()
-
         self._applet.set_menu(self._menu)
+        
 
 
     def _build_manager_actions(self):
@@ -123,12 +124,12 @@ class OpenVPN3ManagerApplet:
         # Adds a menu separator
         separator = Gtk.SeparatorMenuItem.new()
         separator.show()
-
+        
         # Adds a "Reload Config Files" menu item
         menu_update = Gtk.MenuItem(label='Update Config Files')
         menu_update.connect('activate', self._update_config_files)
         menu_update.show()
-
+        
         # Adds a "Quit" menu item
         menu_quit = Gtk.MenuItem(label='Quit')
         menu_quit.connect('activate', self._quit)
@@ -215,27 +216,50 @@ class OpenVPN3ManagerApplet:
         else:
             menu_item.set_inconsistent(True)
             menu_item.set_active(False)
+            
+    def _secret_question(self):
+        answer_label = Gtk.Label(label='Answer')
+        answer_entry = Gtk.Entry()
+        self._answer_dialog = Gtk.Dialog()
+        self._answer_dialog.set_icon_name('dialog-information')
+        self._answer_dialog.set_resizable(False)
+        self._answer_dialog.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
+        self._answer_dialog.set_title('Authentication')
+        self._answer_dialog.set_default_size(400, 150)
+        self._answer_dialog.set_modal(True)
+        box = self._answer_dialog.get_content_area()
+        box.add(answer_label)
+        box.add(answer_entry)
+        self._answer_dialog.add_button('Send', 1)
+        self._answer_dialog.show_all()
+        return_code = self._answer_dialog.run()
+        answer = answer_entry.get_text().strip()
+        self._answer_dialog.destroy()
+        return answer
+        
 
 
     def _make_connection(self, session_name):
 
         credentials = self._credentials[session_name]
         if credentials is not None:
-
-            # Try to starts a VPN connection
-            r = subprocess.run(
-                [self._EXEC_BIN, 'session-start', '--config', session_name], 
-                input="{}\n{}\n".format(credentials['username'], credentials['password']).encode()
-            )
-
-            if r.returncode == 0:
+            try:
+                openvpn = pexpect.spawn(f'{self._EXEC_BIN} session-start --config {session_name}')
+                openvpn.expect("Auth User name:", timeout=30)
+                openvpn.sendline(credentials['username'])
+                openvpn.expect("Auth Password:", timeout=30)
+                openvpn.sendline(credentials['password'])
+                openvpn.expect("::", timeout=30)
+                answer = self._secret_question()
+                openvpn.sendline(answer)
+                openvpn.expect("Connected")
                 # Connection success message
                 Notify.init('OpenVPN3 Manager Applet')
                 notification = Notify.Notification.new('Successfully Connected!', 'The VPN %s was successfully connected!' % session_name, 'dialog-information')
                 notification.show()
                 return True
-            else:
-                # Connection error messa
+            except Exception as e:
+                # Connection error message
                 Notify.init('OpenVPN3 Manager Applet')
                 notification = Notify.Notification.new('Connection Error!', 'The VPN %s was unable to connect! Please check your configuration file' % session_name, 'dialog-error')
                 notification.show()

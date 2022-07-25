@@ -252,7 +252,7 @@ class OpenVPN3ManagerApplet:
                 openvpn.expect("::", timeout=30)
                 answer = self._secret_question()
                 openvpn.sendline(answer)
-                openvpn.expect("Connected")
+                openvpn.expect("Connected", timeout=30)
                 # Connection success message
                 Notify.init('OpenVPN3 Manager Applet')
                 notification = Notify.Notification.new('Successfully Connected!', 'The VPN %s was successfully connected!' % session_name, 'dialog-information')

@@ -8,7 +8,7 @@ Follows this instructions:
 
 ## 2. Download and install the `openvpn3-manager-applet-v1.0.1.deb`
 ```shell
-$ wget https://github.com/ruanmaia/openvpn3-manager-applet/raw/master/openvpn3-manager-applet-v1.0.1.deb
+$ wget https://github.com/Algoro/openvpn3-manager-applet/raw/master/openvpn3-manager-applet-v1.0.1.deb
 
 $ apt install ./openvpn3-manager-applet-v1.0.1.deb 
 ```
